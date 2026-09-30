@@ -1,0 +1,55 @@
+# Build the backend image, push it to GHCR and roll it out on Bloxity Legion.
+#   push to `dev`  -> dev channel   (https://speed-titan-escape.dev.host.bloxity.io)
+#   push to `main` -> prod channel  (https://speed-titan-escape.host.bloxity.io)
+#
+# One repo secret is needed: LEGION_DEPLOY_TOKEN (from My Games on Bloxity).
+# After the very first push, make the GHCR package public
+# (repo -> Packages -> Package settings -> Change visibility) so Legion can pull it.
+name: Deploy backend
+
+on:
+  push:
+    branches: [main, dev]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+env:
+  GAME_ID: speed-titan-escape
+  SEAT_CAP: 48 # players per pod: 6 lobbies x 8 players
+  MAX_REPLICAS: 5
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Resolve channel and image
+        id: meta
+        run: |
+          if [ "${GITHUB_REF_NAME}" = "main" ]; then CHANNEL=prod; else CHANNEL=dev; fi
+          OWNER="${GITHUB_REPOSITORY_OWNER,,}"
+          SHA="${GITHUB_SHA::12}"
+          echo "channel=$CHANNEL" >> "$GITHUB_OUTPUT"
+          echo "sha=$SHA" >> "$GITHUB_OUTPUT"
+          echo "image=ghcr.io/$OWNER/${GAME_ID}-server:$CHANNEL-$SHA" >> "$GITHUB_OUTPUT"
+
+      - name: Log in to GHCR
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+
+      - name: Build and push
+        run: |
+          docker build -t "${{ steps.meta.outputs.image }}" .
+          docker push "${{ steps.meta.outputs.image }}"
+
+      - name: Deploy on Legion
+        env:
+          LEGION_DEPLOY_TOKEN: ${{ secrets.LEGION_DEPLOY_TOKEN }}
+        run: |
+          curl -sf -X POST "https://legion.bloxity.io/v1/apps/${GAME_ID}/deploy" \
+            -H "Authorization: Bearer $LEGION_DEPLOY_TOKEN" \
+            -H 'Content-Type: application/json' \
+            -d "{\"channel\":\"${{ steps.meta.outputs.channel }}\",\"image\":\"${{ steps.meta.outputs.image }}\",\"version\":\"${{ steps.meta.outputs.sha }}\",\"seatCap\":${SEAT_CAP},\"maxReplicas\":${MAX_REPLICAS}}"
