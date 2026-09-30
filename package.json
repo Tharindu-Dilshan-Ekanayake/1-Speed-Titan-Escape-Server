@@ -1,20 +1,22 @@
 {
-  "name": "server",
+  "name": "speed-titan-escape-server",
   "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
+  "description": "+1 Speed Titan Escape multiplayer backend (Colyseus) for Bloxity Legion",
+  "main": "src/index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
-    "start": "node src/server.js",
-    "dev": "nodemon src/server.js"
+    "start": "node src/index.js",
+    "dev": "node --watch src/index.js"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "type": "commonjs",
+  "license": "UNLICENSED",
+  "type": "module",
   "dependencies": {
-    "cors": "^2.8.6",
-    "express": "^5.2.1",
-    "nodemon": "^3.1.14"
-  }
+    "@colyseus/schema": "^5.0.34",
+    "@colyseus/ws-transport": "^0.18.4",
+    "colyseus": "^0.18.8",
+    "express": "^5.2.1"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "private": true
 }
